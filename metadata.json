@@ -1,0 +1,6 @@
+{
+  "name": "YOUCADEMY",
+  "description": "Your personal AI-powered learning assistant for YouTube. Get summaries, transcripts, and quizzes from any video.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
