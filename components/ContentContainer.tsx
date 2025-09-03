@@ -30,12 +30,46 @@ const ContentContainer = forwardRef<HTMLDivElement, ContentContainerProps>(({ co
   useEffect(() => {
     const loadVoices = () => {
       const voices = window.speechSynthesis.getVoices();
-      const femaleEnVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Female') || v.name.includes('Samantha') || v.name.includes('Zira'))) || voices.find(v => v.lang.startsWith('en'));
-      setSelectedVoice(femaleEnVoice || null);
+      if (voices.length === 0) return; // Wait for voices to load
+
+      const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+      if (englishVoices.length === 0) return;
+
+      const preferredVoiceKeywords = [
+        'Samantha', // Apple - High quality, natural female
+        'Google US English', // Chrome/Android - Often a high quality female voice
+        'Tessa', // Apple - Another good option
+        'Microsoft Aria', // Windows - Natural voice
+        'Microsoft Zira', // Windows
+        'Female', // Generic fallback for other female voices
+      ];
+
+      let bestVoice: SpeechSynthesisVoice | null = null;
+
+      for (const keyword of preferredVoiceKeywords) {
+        const found = englishVoices.find(v => v.name.includes(keyword));
+        if (found) {
+          bestVoice = found;
+          break;
+        }
+      }
+
+      // Fallback to the first available English voice if no preferred ones found.
+      if (!bestVoice) {
+        bestVoice = englishVoices[0] || null;
+      }
+
+      setSelectedVoice(bestVoice);
     };
-    loadVoices();
+    
+    // The voices load asynchronously. We must listen for the 'voiceschanged' event.
     window.speechSynthesis.onvoiceschanged = loadVoices;
-    return () => { window.speechSynthesis.onvoiceschanged = null; };
+    // Also call it directly in case the voices are already loaded.
+    loadVoices();
+
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
   }, []);
 
   useEffect(() => {
@@ -54,7 +88,13 @@ const ContentContainer = forwardRef<HTMLDivElement, ContentContainerProps>(({ co
     generateContentFromVideo(SUMMARY_FROM_VIDEO_PROMPT, contentBasis)
       .then(jsonString => {
         try {
-          const data = JSON.parse(jsonString);
+          let jsonStr = jsonString.trim();
+          const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
+          const match = jsonStr.match(fenceRegex);
+          if (match && match[2]) {
+            jsonStr = match[2].trim();
+          }
+          const data = JSON.parse(jsonStr);
           setSummary(data.summary || '');
           setVideoTitle(data.title || 'Untitled Video');
           setLoadingStates(prev => ({ ...prev, summary: 'ready' }));
@@ -72,7 +112,13 @@ const ContentContainer = forwardRef<HTMLDivElement, ContentContainerProps>(({ co
     generateContentFromVideo(TRANSCRIPT_FROM_VIDEO_PROMPT, contentBasis)
       .then(jsonString => {
         try {
-          const data = JSON.parse(jsonString);
+          let jsonStr = jsonString.trim();
+          const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
+          const match = jsonStr.match(fenceRegex);
+          if (match && match[2]) {
+            jsonStr = match[2].trim();
+          }
+          const data = JSON.parse(jsonStr);
           setTranscript(data.transcript || '');
           setVideoTitle(prev => prev || data.title || 'Untitled Video');
           setLoadingStates(prev => ({ ...prev, transcript: 'ready' }));
