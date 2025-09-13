@@ -1,13 +1,8 @@
 
-export const TRANSCRIPT_FROM_VIDEO_PROMPT = `Based on the attached video content, please provide a JSON object with two keys:
-1. "title": A concise and accurate title for the video.
-2. "transcript": A detailed, accurate, and well-formatted transcript of the video. If multiple speakers are discernible, try to identify and label them (e.g., Speaker 1:, Speaker 2:). Ensure proper punctuation and paragraph breaks.
-
-Ensure the output is a single, valid JSON object only.`;
-
-export const SUMMARY_FROM_VIDEO_PROMPT = `Based on the attached video content, please provide a JSON object with two keys:
+export const COMBINED_DATA_FROM_VIDEO_PROMPT = `Based on the attached video content, please provide a single JSON object with three keys:
 1. "title": A concise and accurate title for the video.
 2. "summary": A concise summary of the video. The summary should capture the main points and key takeaways, aiming for 2-4 paragraphs.
+3. "transcript": A detailed, accurate, and well-formatted transcript of the video. If multiple speakers are discernible, try to identify and label them (e.g., Speaker 1:, Speaker 2:). Ensure proper punctuation and paragraph breaks.
 
 Ensure the output is a single, valid JSON object only.`;
 

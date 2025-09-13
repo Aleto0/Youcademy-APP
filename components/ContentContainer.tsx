@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, forwardRef, useCallback } from 'rea
 import { jsPDF } from 'jspdf';
 import type { QuizQuestion, LoadingStates, ActiveTab } from '../types';
 import { generateContentFromVideo, generateQuizFromTranscript } from '../services/geminiService';
-import { QUIZ_FROM_TRANSCRIPT_PROMPT, SUMMARY_FROM_VIDEO_PROMPT, TRANSCRIPT_FROM_VIDEO_PROMPT } from '../lib/prompts';
+import { QUIZ_FROM_TRANSCRIPT_PROMPT, COMBINED_DATA_FROM_VIDEO_PROMPT } from '../lib/prompts';
 
 interface ContentContainerProps {
   contentBasis: string;
@@ -78,61 +78,50 @@ const ContentContainer = forwardRef<HTMLDivElement, ContentContainerProps>(({ co
 
   const fetchInitialContent = useCallback(async () => {
     if (!contentBasis) return;
+
+    // Reset all relevant states
     setLoadingStates({ summary: 'loading', transcript: 'loading', quiz: 'idle' });
     setErrors({});
-    setSummary(''); setTranscript(''); setQuiz([]); setUserSelections([]); setQuizScore(null);
+    setSummary('');
+    setTranscript('');
+    setQuiz([]);
+    setUserSelections([]);
+    setQuizScore(null);
     setVideoTitle('');
     setActiveTab('summary');
-    
-    // Fetch summary
-    generateContentFromVideo(SUMMARY_FROM_VIDEO_PROMPT, contentBasis)
-      .then(jsonString => {
-        try {
-          let jsonStr = jsonString.trim();
-          const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
-          const match = jsonStr.match(fenceRegex);
-          if (match && match[2]) {
-            jsonStr = match[2].trim();
-          }
-          const data = JSON.parse(jsonStr);
-          setSummary(data.summary || '');
-          setVideoTitle(data.title || 'Untitled Video');
-          setLoadingStates(prev => ({ ...prev, summary: 'ready' }));
-        } catch(e) {
-          console.error("Failed to parse summary JSON from AI:", e);
-          throw new Error("AI returned invalid summary data.");
-        }
-      }).catch(err => {
-        console.error('Error generating summary:', err);
-        setErrors(prev => ({ ...prev, summary: err instanceof Error ? err.message : 'Unknown error' }));
-        setLoadingStates(prev => ({ ...prev, summary: 'error' }));
-      });
-      
-    // Fetch transcript
-    generateContentFromVideo(TRANSCRIPT_FROM_VIDEO_PROMPT, contentBasis)
-      .then(jsonString => {
-        try {
-          let jsonStr = jsonString.trim();
-          const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
-          const match = jsonStr.match(fenceRegex);
-          if (match && match[2]) {
-            jsonStr = match[2].trim();
-          }
-          const data = JSON.parse(jsonStr);
-          setTranscript(data.transcript || '');
-          setVideoTitle(prev => prev || data.title || 'Untitled Video');
-          setLoadingStates(prev => ({ ...prev, transcript: 'ready' }));
-        } catch (e) {
-          console.error("Failed to parse transcript JSON from AI:", e);
-          throw new Error("AI returned invalid transcript data.");
-        }
-      }).catch(err => {
-        console.error('Error generating transcript:', err);
-        setErrors(prev => ({ ...prev, transcript: err instanceof Error ? err.message : 'Unknown error' }));
-        setLoadingStates(prev => ({ ...prev, transcript: 'error' }));
-      });
 
+    try {
+      const jsonString = await generateContentFromVideo(COMBINED_DATA_FROM_VIDEO_PROMPT, contentBasis);
+      
+      // Clean up potential markdown fences from the AI response
+      let jsonStr = jsonString.trim();
+      const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
+      const match = jsonStr.match(fenceRegex);
+      if (match && match[2]) {
+        jsonStr = match[2].trim();
+      }
+      
+      const data = JSON.parse(jsonStr);
+
+      if (!data.summary || !data.transcript) {
+        throw new Error("AI response was missing summary or transcript data.");
+      }
+
+      setSummary(data.summary);
+      setTranscript(data.transcript);
+      setVideoTitle(data.title || 'Untitled Video');
+      
+      // Set both as ready since they were fetched together
+      setLoadingStates(prev => ({ ...prev, summary: 'ready', transcript: 'ready' }));
+
+    } catch (err) {
+      console.error('Error generating initial content:', err);
+      const errorMessage = `Failed to process video. Please try another URL. Details: ${err instanceof Error ? err.message : String(err)}`;
+      setErrors({ summary: errorMessage, transcript: errorMessage });
+      setLoadingStates(prev => ({ ...prev, summary: 'error', transcript: 'error' }));
+    }
   }, [contentBasis]);
+
 
   useEffect(() => {
     fetchInitialContent();
