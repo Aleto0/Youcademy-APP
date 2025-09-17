@@ -1,4 +1,3 @@
-
 /**
  * Extracts the YouTube video ID from various URL formats.
  * @param url - The YouTube URL.
@@ -53,7 +52,7 @@ export async function validateYoutubeUrl(
 export function getYoutubeEmbedUrl(url: string): string {
   const videoId = getYouTubeVideoId(url);
   if (videoId) {
-    return `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
+    return `https://www.youtube.com/embed/${videoId}?rel=0`;
   }
   // Fallback, though unlikely to be reached if validateYoutubeUrl is used.
   return url;
